@@ -1,0 +1,31 @@
+# plugin manager --------------------------------------------------------------
+# set directory for zinit and plugins
+ZINIT_HOME=/root/.local/share/zinit/zinit.git
+source "${ZINIT_HOME}/zinit.zsh"
+
+# compinit --------------------------------------------------------------------
+zstyle :compinstall filename '/root/.zshrc'
+autoload -Uz compinit
+compinit
+# load completions
+autoload -U compinit && compinit
+
+# completion styling ----------------------------------------------------------
+# case insensitive
+zstyle ":completion:*" matcher-list "m:{a-z}={A-Za-z}"
+# highlight directories in completion
+zstyle ":completion:*" list-colors "${(s.:.)LS_COLORS}"
+# disable default zshell completion menu
+zstyle ":completion:*" menu no
+# preview subdirectories in completion menu
+zstyle ":fzf-tab:complete:cd:*" fzf-preview "ls --color $realpath"
+
+export LS_COLORS="$LS_COLORS:ow=1;34:tw=1;34:"
+
+# vim mode, e.g. <esc> to normal mode and "i" for insert
+bindkey -v
+
+# Load all zsh config files in ~/.config/zsh
+for file in /root/.config/zsh/*.zsh; do
+  [ -r "$file" ] && source "$file"
+done
