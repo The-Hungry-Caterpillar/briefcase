@@ -1,6 +1,8 @@
 -- lua/plugins/treesitter.lua
 return {
 	"nvim-treesitter/nvim-treesitter",
+	lazy = false,
+	build = ":TSUpdate",
 	-- LazyVim already sets up most defaults; we just override ensure_installed
 	opts = {
 		ensure_installed = {

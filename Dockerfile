@@ -26,11 +26,12 @@ RUN rm -f /etc/apt/apt.conf.d/default-release || true && \
         bzip2 \
         ca-certificates \
         nodejs npm \
-        openjdk-17-jdk && \
-        rm -rf /var/lib/apt/lists/*
+        openjdk-17-jdk \
+        build-essential \
+    && rm -rf /var/lib/apt/lists/*
+RUN npm install -g tree-sitter-cli
 
 
-#
 # # -------------------------------------------------------------------
 # # Install dotnet SDK 8.0
 # # -------------------------------------------------------------------
@@ -41,6 +42,7 @@ RUN rm -f /etc/apt/apt.conf.d/default-release || true && \
 #     apt-get update && \
 #     apt-get install -y dotnet-sdk-8.0 && \
 #     rm -rf /var/lib/apt/lists/*
+#
 #
 # # -------------------------------------------------------------------
 # # Install Miniconda (non-interactive)
@@ -56,6 +58,7 @@ RUN rm -f /etc/apt/apt.conf.d/default-release || true && \
 # # Use bash so conda behaves nicely in RUN commands
 # SHELL ["bash", "-lc"]
 #
+#
 # # -------------------------------------------------------------------
 # # Create 'carafe' conda environment (AlphaPeptDeep DIA env)
 # # -------------------------------------------------------------------
@@ -70,12 +73,14 @@ RUN rm -f /etc/apt/apt.conf.d/default-release || true && \
 # # Make the carafe env the default "active" env via PATH (Docker-style activation)
 # ENV PATH="/opt/miniconda/envs/carafe/bin:${PATH}"
 #
+#
 # # -------------------------------------------------------------------
 # # Download Carafe binary release and unpack under /opt
 # # -------------------------------------------------------------------
 # RUN wget https://github.com/Noble-Lab/Carafe/releases/download/v1.1.2/carafe-1.1.2.zip -O /tmp/carafe-1.1.2.zip && \
 #     unzip /tmp/carafe-1.1.2.zip -d /opt && \
 #     rm /tmp/carafe-1.1.2.zip
+#
 #
 # # -------------------------------------------------------------------
 # # Download DIA-NN
@@ -88,6 +93,7 @@ RUN rm -f /etc/apt/apt.conf.d/default-release || true && \
 #     chmod -R 775 /diann-${DIANN_VERSION} && \
 #     rm /tmp/diann-${DIANN_VERSION}.zip
 #
+#
 # # -------------------------------------------------------------------
 # # Install Pandoc
 # # -------------------------------------------------------------------
@@ -97,6 +103,7 @@ RUN rm -f /etc/apt/apt.conf.d/default-release || true && \
 #     dpkg -i /tmp/pandoc.deb && \
 #     rm /tmp/pandoc.deb
 #
+#
 # # -------------------------------------------------------------------
 # # Install R packages
 # # -------------------------------------------------------------------
@@ -104,29 +111,46 @@ RUN rm -f /etc/apt/apt.conf.d/default-release || true && \
 # COPY scripts/install_packages.R /usr/local/lib/install_packages.R
 # RUN Rscript /usr/local/lib/install_packages.R
 
+
 # -------------------------------------------------------------------
 # Neovim
 # -------------------------------------------------------------------
+# # Install latest Neovim release
+# RUN wget https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.tar.gz && \
+#     tar xzf nvim-linux-x86_64.tar.gz && \
+#     mv nvim-linux-x86_64 /opt/nvim && \
+#     ln -s /opt/nvim/bin/nvim /usr/local/bin/nvim && \
+#     rm nvim-linux-x86_64.tar.gz
+# COPY dotfiles/nvim /root/.config/nvim
+# RUN nvim --headless "+Lazy! sync" +qa
+# RUN nvim --headless "+TSUpdateSync" +qa
+# RUN nvim --headless "+TSInstallSync r" +qa
+# RUN nvim --headless "+Lazy! sync" +qa
 # Install latest Neovim release
 RUN wget https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.tar.gz && \
     tar xzf nvim-linux-x86_64.tar.gz && \
     mv nvim-linux-x86_64 /opt/nvim && \
     ln -s /opt/nvim/bin/nvim /usr/local/bin/nvim && \
     rm nvim-linux-x86_64.tar.gz
+
+# Copy LazyVim config
 COPY dotfiles/nvim /root/.config/nvim
-# RUN nvim --headless "+Lazy! sync" +qa
-# RUN nvim --headless "+TSUpdateSync" +qa
-# RUN nvim --headless "+TSInstallSync r" +qa
-# RUN nvim --headless "+Lazy! sync" +qa
-RUN nvim --headless "+Lazy! sync" \
-    "+lua vim.treesitter.get_parser(0, 'r')" \
-    "+qa"
+
+# 1. Sync plugins (installs nvim-treesitter, R.nvim, etc.)
+RUN nvim --headless "+Lazy! sync" +qa
+
+# 2. Install all treesitter parsers from `ensure_installed` (bash, r, rnoweb, etc.)
+RUN nvim --headless '+lua require("nvim-treesitter.install").update({ with_sync = true })()' +qa
+
+RUN nvim --headless "+checkhealth nvim-treesitter" +qa
+
+
 
 
 
 
 # -------------------------------------------------------------------
-# zsh
+# ZSH
 # -------------------------------------------------------------------
 # Install zinit at build time
 RUN mkdir -p /root/.local/share/zinit && \
